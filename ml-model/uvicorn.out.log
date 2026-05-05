@@ -1,0 +1,21 @@
+INFO:     127.0.0.1:51709 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51715 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55297 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55298 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60054 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60054 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53969 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51557 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63181 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61751 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61752 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61600 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64596 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57672 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51577 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54640 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50254 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61557 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51853 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51853 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51853 - "POST /predict HTTP/1.1" 200 OK
