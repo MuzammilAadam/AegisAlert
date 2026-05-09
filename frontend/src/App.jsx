@@ -12,7 +12,7 @@ import {
   Waves,
   Wind,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -69,6 +69,23 @@ function formatNumber(value, suffix = "") {
   return `${value}${suffix}`;
 }
 
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const row = payload[0]?.payload || {};
+  return (
+    <div className="chart-tooltip">
+      <strong>{label}</strong>
+      <p>{row.disasterType}</p>
+      {payload.map((entry) => (
+        <span key={entry.dataKey} style={{ color: entry.color }}>
+          {entry.name}: {entry.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const [city, setCity] = useState("Solapur");
   const [searchCity, setSearchCity] = useState("Solapur");
@@ -84,6 +101,7 @@ export default function App() {
         time: new Date(item.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
+          second: "2-digit",
         }),
         temperature: item.input?.temperature ?? 0,
         humidity: item.input?.humidity ?? 0,
@@ -91,13 +109,24 @@ export default function App() {
         rainfall: item.input?.rainfall ?? 0,
         wind: item.input?.wind_speed ?? 0,
         seismic: item.input?.seismic_activity_index ?? 0,
+        disasterType: item.prediction?.disaster_type || "None",
       }));
   }, [history]);
 
-  async function fetchPrediction(selectedCity = city) {
-    const normalizedCity = selectedCity.trim() || "Solapur";
+  const fetchHistory = useCallback(async (selectedCity = city) => {
+    const response = await axios.get(`${API_BASE_URL}/api/predictions/history`, {
+      params: { city: selectedCity, limit: 12 },
+    });
+    setHistory(response.data.history);
+  }, [city]);
 
-    setLoading(true);
+  const fetchPrediction = useCallback(async (selectedCity = city, options = {}) => {
+    const normalizedCity = selectedCity.trim() || "Solapur";
+    const isSilent = options.silent === true;
+
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError("");
     try {
       const response = await axios.post(`${API_BASE_URL}/api/predictions`, {
@@ -110,25 +139,34 @@ export default function App() {
     } catch (requestError) {
       setError(requestError.response?.data?.message || requestError.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
-  }
-
-  async function fetchHistory(selectedCity = city) {
-    const response = await axios.get(`${API_BASE_URL}/api/predictions/history`, {
-      params: { city: selectedCity, limit: 12 },
-    });
-    setHistory(response.data.history);
-  }
+  }, [city, fetchHistory]);
 
   function handleSubmit(event) {
     event.preventDefault();
-    fetchPrediction(searchCity);
+    const normalizedCity = searchCity.trim() || "Solapur";
+
+    if (normalizedCity === city) {
+      fetchPrediction(normalizedCity);
+      return;
+    }
+
+    setCity(normalizedCity);
+    setSearchCity(normalizedCity);
   }
 
   useEffect(() => {
-    fetchPrediction("Solapur");
-  }, []);
+    fetchPrediction(city);
+
+    const interval = setInterval(() => {
+      fetchPrediction(city, { silent: true });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [city, fetchPrediction]);
 
   const probability = current?.prediction?.disaster_probability ?? 0;
   const disasterType = current?.prediction?.disaster_type || "Monitoring";
@@ -267,11 +305,7 @@ export default function App() {
                 <XAxis dataKey="time" stroke="#64748b" tickMargin={10} />
                 <YAxis domain={[0, 100]} stroke="#64748b" tickMargin={8} />
                 <Tooltip
-                  contentStyle={{
-                    border: "1px solid #dbe3ee",
-                    borderRadius: 8,
-                    boxShadow: "0 18px 42px rgba(15, 23, 42, 0.16)",
-                  }}
+                  content={<ChartTooltip />}
                 />
                 <Legend verticalAlign="top" height={36} />
                 <Line
@@ -338,13 +372,17 @@ export default function App() {
           </div>
           <div className="subscriber-note">
             <Gauge size={18} />
-            Alerts use the separate email subscriber collection.
+            Alerts are sent only to users registered in {current?.city || city}.
           </div>
-          <ul>
-            {precautions.map((precaution) => (
-              <li key={precaution}>{precaution}</li>
-            ))}
-          </ul>
+          {isHighRisk ? (
+            <ul>
+              {precautions.map((precaution) => (
+                <li key={precaution}>{precaution}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted-note">Precautions appear when probability is above 70%.</p>
+          )}
         </aside>
       </section>
     </main>

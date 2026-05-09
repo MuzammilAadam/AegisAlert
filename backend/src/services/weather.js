@@ -69,16 +69,18 @@ function getSeismicIndicators(normalizedCity) {
 
 function getMockWeather(city) {
   const seed = citySeeds[city.toLowerCase()] || citySeeds.solapur;
-  const hour = new Date().getHours();
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const dayWave = Math.sin((hour / 24) * Math.PI * 2);
-  const rainfall = city.toLowerCase() === "solapur" ? 4 : 28;
+  const liveWave = Math.sin((now.getTime() / 5000) * Math.PI * 2);
+  const rainfall = city.toLowerCase() === "solapur" ? 4 + Math.max(0, liveWave) : 28 + liveWave * 2;
 
   return {
-    temperature: round(seed.baselineTemp + dayWave * 4),
-    humidity: round(48 - dayWave * 8),
-    rainfall,
-    wind_speed: round(14 + Math.abs(dayWave) * 8),
-    pressure: round(1007 - Math.max(0, rainfall - 20) / 5),
+    temperature: round(seed.baselineTemp + dayWave * 4 + liveWave * 0.6),
+    humidity: round(48 - dayWave * 8 - liveWave * 2),
+    rainfall: round(Math.max(0, rainfall)),
+    wind_speed: round(14 + Math.abs(dayWave) * 8 + liveWave * 1.5),
+    pressure: round(1007 - Math.max(0, rainfall - 20) / 5 - liveWave * 0.4),
   };
 }
 

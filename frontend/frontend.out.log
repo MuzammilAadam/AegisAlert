@@ -3,8 +3,8 @@
 > vite --host 0.0.0.0 --port 5173
 
 
-  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m300[22m[2m[0m ms[22m
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m322[22m[2m[0m ms[22m
 
   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.212.194.97:[1m5173[22m/[39m
-[2m6:29:25 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx[22m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.231.183.53:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.26.128.1:[1m5173[22m/[39m

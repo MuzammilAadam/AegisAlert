@@ -1,2 +1,6 @@
+
+> disaster-prediction-backend@1.0.0 start
+> node src/server.js
+
 Connected to MongoDB
 Backend API running on http://localhost:5000

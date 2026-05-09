@@ -342,6 +342,33 @@ button:disabled {
   margin-top: 18px;
 }
 
+.chart-tooltip {
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+  padding: 12px;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+
+.chart-tooltip strong {
+  color: #0f172a;
+}
+
+.chart-tooltip p {
+  margin: 0;
+  color: #475569;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.chart-tooltip span {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
 .precautions-card {
   align-self: stretch;
 }
@@ -387,6 +414,12 @@ button:disabled {
   background: #f8fafc;
   color: #334155;
   font-weight: 750;
+}
+
+.muted-note {
+  margin: 18px 0 0;
+  color: #64748b;
+  font-weight: 800;
 }
 
 @media (max-width: 1080px) {

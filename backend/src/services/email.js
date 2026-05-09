@@ -16,6 +16,15 @@ const precautionMap = {
   ],
 };
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 export function getPrecautionsForDisaster(disasterType = "") {
   const normalizedType = disasterType.toLowerCase();
 
@@ -69,6 +78,39 @@ export async function sendAlertEmail({
     },
   });
 
+  const safeCity = escapeHtml(city);
+  const safeDisasterType = escapeHtml(disasterType);
+  const safeProbability = escapeHtml(probability);
+  const htmlPrecautions = precautions
+    .map((precaution) => `<li>${escapeHtml(precaution)}</li>`)
+    .join("");
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+      <h2 style="margin: 0 0 12px;">High disaster risk detected for ${safeCity}</h2>
+      <p><strong>Disaster type:</strong> ${safeDisasterType}</p>
+      <p><strong>Probability:</strong> ${safeProbability}%</p>
+
+      <h3 style="margin: 20px 0 8px;">Weather conditions</h3>
+      <ul>
+        <li>Temperature: ${escapeHtml(weather.temperature ?? "N/A")} C</li>
+        <li>Humidity: ${escapeHtml(weather.humidity ?? "N/A")}%</li>
+        <li>Rainfall: ${escapeHtml(weather.rainfall ?? "N/A")} mm</li>
+        <li>Wind speed: ${escapeHtml(weather.wind_speed ?? "N/A")} km/h</li>
+        <li>Pressure: ${escapeHtml(weather.pressure ?? "N/A")} hPa</li>
+        <li>Sea level anomaly: ${escapeHtml(environmental.sea_level_anomaly ?? "N/A")} m</li>
+        <li>Soil moisture: ${escapeHtml(environmental.soil_moisture ?? "N/A")}%</li>
+        <li>Seismic activity index: ${escapeHtml(environmental.seismic_activity_index ?? "N/A")}</li>
+        <li>Tectonic stress: ${escapeHtml(environmental.tectonic_stress ?? "N/A")}</li>
+        <li>Historical earthquake frequency: ${escapeHtml(
+          environmental.historical_earthquake_frequency ?? "N/A"
+        )}</li>
+      </ul>
+
+      <h3 style="margin: 20px 0 8px;">Precautions</h3>
+      <ul>${htmlPrecautions}</ul>
+    </div>
+  `;
+
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: recipients,
@@ -95,6 +137,7 @@ export async function sendAlertEmail({
       "Precaution suggestions:",
       ...precautions.map((precaution) => `- ${precaution}`),
     ].join("\n"),
+    html,
   });
 
   return true;

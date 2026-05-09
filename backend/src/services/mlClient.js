@@ -7,12 +7,32 @@ export async function predictDisaster(input) {
     const response = await axios.post(`${baseUrl}/predict`, input, {
       timeout: 10000,
     });
-    return response.data;
+    return normalizePrediction(response.data);
   } catch (error) {
     const message = error.response?.data?.detail || error.message;
     console.warn(`ML prediction failed, using rule-based fallback: ${message}`);
-    return getFallbackPrediction(input);
+    return normalizePrediction(getFallbackPrediction(input));
   }
+}
+
+function formatDisasterType(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  const labels = {
+    heatwave: "Heatwave",
+    flood: "Flood",
+    cyclone: "Cyclone",
+    earthquake: "Earthquake",
+    none: "None",
+  };
+
+  return labels[normalized] || value;
+}
+
+function normalizePrediction(prediction) {
+  return {
+    ...prediction,
+    disaster_type: formatDisasterType(prediction?.disaster_type),
+  };
 }
 
 function getFallbackPrediction(input) {
