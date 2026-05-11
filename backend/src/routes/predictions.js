@@ -50,7 +50,7 @@ router.post("/", async (req, res, next) => {
     let alertSuppressed = false;
     if (prediction.disaster_probability > ALERT_THRESHOLD) {
       const cityUsers = isDatabaseConnected()
-        ? await User.find(cityFilter(city)).lean()
+        ? await User.find({ ...cityFilter(city), isVerified: true }).lean()
         : [];
       const alertRecipients = parseEmailRecipients(cityUsers.map((user) => user.email));
       alertedUsers = alertRecipients.length;

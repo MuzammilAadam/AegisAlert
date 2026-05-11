@@ -9,28 +9,11 @@ const router = Router();
 router.post("/email", async (req, res, next) => {
   try {
     const emails = parseEmailRecipients(req.body.email);
-    const city = normalizeCity(req.body.city);
-    const name = String(req.body.name || "").trim();
+    if (!emails.length) return res.status(400).json({ message: "A valid email is required." });
 
-    if (!emails.length) {
-      return res.status(400).json({ message: "A valid email is required." });
-    }
-
-    if (!isDatabaseConnected()) {
-      return res.status(503).json({ message: "Database is not connected." });
-    }
-
-    const users = await Promise.all(
-      emails.map((email) =>
-        User.findOneAndUpdate(
-          { email },
-          { email, city, ...(name ? { name } : {}) },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        ).lean()
-      )
-    );
-
-    res.status(201).json({ users });
+    res.status(410).json({
+      message: "User email registration now requires OTP verification. Use /api/auth/signup/send-otp.",
+    });
   } catch (error) {
     next(error);
   }
@@ -43,7 +26,7 @@ router.get("/subscribers", async (req, res, next) => {
     }
 
     const city = normalizeCity(req.query.city);
-    const query = city ? cityFilter(city) : {};
+    const query = city ? { ...cityFilter(city), isVerified: true } : { isVerified: true };
     const users = await User.find(query).lean();
     res.json({ users });
   } catch (error) {
