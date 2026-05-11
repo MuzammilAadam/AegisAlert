@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import authRoutes from "./routes/auth.js";
 import emailSubscriberRoutes from "./routes/emailSubscribers.js";
 import predictionRoutes from "./routes/predictions.js";
 import userRoutes from "./routes/users.js";
@@ -54,6 +55,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/predictions", predictionRoutes);
 app.use("/api/email-subscribers", emailSubscriberRoutes);
 app.use("/api/users", userRoutes);

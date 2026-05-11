@@ -2,10 +2,11 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    email: { type: String, default: "", trim: true, lowercase: true, index: true },
-    city: { type: String, default: "", trim: true, index: true },
-    name: { type: String, default: "" },
-    createdAt: { type: Date, default: Date.now },
+    name:     { type: String, default: "", trim: true },
+    email:    { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
+    password: { type: String, default: "" },
+    city:     { type: String, default: "", trim: true, index: true },
+    createdAt:{ type: Date, default: Date.now },
   },
   { versionKey: false }
 );
