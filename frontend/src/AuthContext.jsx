@@ -25,6 +25,14 @@ export function AuthProvider({ children }) {
     setUser(newUser);
   }
 
+  const completeOAuthSession = useCallback(async (newToken) => {
+    const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${newToken}` },
+    });
+    persistSession(newToken, res.data.user);
+    return res.data.user;
+  }, []);
+
   /* ── Signup flow ── */
   const signupSendOtp = useCallback(async (name, email, password, city) => {
     await axios.post(`${API_BASE_URL}/api/auth/signup/send-otp`, { name, email, password, city });
@@ -47,6 +55,29 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, []);
 
+  const forgotPassword = useCallback(async (email) => {
+    await axios.post(`${API_BASE_URL}/api/auth/password/forgot`, { email });
+  }, []);
+
+  const resetPassword = useCallback(async (email, otp, password) => {
+    await axios.post(`${API_BASE_URL}/api/auth/password/reset`, { email, otp, password });
+  }, []);
+
+  const completeOAuthCity = useCallback(async (city, oauthToken) => {
+    const activeToken = oauthToken || token;
+    const res = await axios.post(
+      `${API_BASE_URL}/api/auth/oauth/city`,
+      { city },
+      { headers: { Authorization: `Bearer ${activeToken}` } }
+    );
+    persistSession(res.data.token, res.data.user);
+    return res.data.user;
+  }, [token]);
+
+  const startOAuth = useCallback((provider) => {
+    window.location.href = `${API_BASE_URL}/api/auth/${provider}`;
+  }, []);
+
   /* ── Logout ── */
   const logout = useCallback(() => {
     localStorage.removeItem("aegis_token");
@@ -55,7 +86,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signupSendOtp, signupVerifyOtp, loginSendOtp, loginVerifyOtp, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        signupSendOtp,
+        signupVerifyOtp,
+        loginSendOtp,
+        loginVerifyOtp,
+        forgotPassword,
+        resetPassword,
+        completeOAuthSession,
+        completeOAuthCity,
+        startOAuth,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

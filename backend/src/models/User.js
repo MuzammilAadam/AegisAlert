@@ -6,9 +6,13 @@ const userSchema = new mongoose.Schema(
     email:      { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
     password:   { type: String, default: "" },
     city:       { type: String, default: "", trim: true, index: true },
+    authProvider: { type: String, enum: ["local", "google", "github"], default: "local", index: true },
+    oauthId:    { type: String, default: "", trim: true },
     isVerified: { type: Boolean, default: false },
     otp:        { type: String, default: null },
     otpExpiry:  { type: Date, default: null },
+    resetPasswordOtp: { type: String, default: null },
+    resetPasswordExpiry: { type: Date, default: null },
     createdAt:  { type: Date, default: Date.now },
   },
   { versionKey: false }

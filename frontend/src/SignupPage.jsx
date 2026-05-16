@@ -5,8 +5,10 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle,
+  Chrome,
   Eye,
   EyeOff,
+  Github,
   Lock,
   Mail,
   MapPin,
@@ -33,7 +35,7 @@ function Steps({ step }) {
 }
 
 export default function SignupPage() {
-  const { signupSendOtp, signupVerifyOtp } = useAuth();
+  const { signupSendOtp, signupVerifyOtp, startOAuth } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
@@ -153,6 +155,17 @@ export default function SignupPage() {
 
             {error && <div className="auth-error"><AlertCircle size={16} />{error}</div>}
             {success && <div className="auth-success"><CheckCircle size={16} />{success}</div>}
+
+            <div className="oauth-grid">
+              <button type="button" className="oauth-btn" onClick={() => startOAuth("google")} disabled={loading}>
+                <Chrome size={18} /> Google
+              </button>
+              <button type="button" className="oauth-btn" onClick={() => startOAuth("github")} disabled={loading}>
+                <Github size={18} /> GitHub
+              </button>
+            </div>
+
+            <div className="auth-divider"><span>or create with email</span></div>
 
             <form className="auth-form" onSubmit={handleSendOtp}>
               <div className="auth-field">

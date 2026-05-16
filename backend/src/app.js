@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import passport from "passport";
 import authRoutes from "./routes/auth.js";
 import emailSubscriberRoutes from "./routes/emailSubscribers.js";
 import predictionRoutes from "./routes/predictions.js";
@@ -50,6 +51,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(passport.initialize());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

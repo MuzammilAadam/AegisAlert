@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ShieldAlert, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ShieldAlert, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Github, Chrome } from "lucide-react";
 import { useAuth } from "./AuthContext";
 
 // ── Step indicator ──────────────────────────────
@@ -21,8 +21,9 @@ function Steps({ step }) {
 }
 
 export default function LoginPage() {
-  const { loginSendOtp, loginVerifyOtp } = useAuth();
+  const { loginSendOtp, loginVerifyOtp, startOAuth } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [step, setStep]         = useState(1);
   const [email, setEmail]       = useState("");
@@ -30,7 +31,7 @@ export default function LoginPage() {
   const [otp, setOtp]           = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [error, setError]       = useState(searchParams.get("error") || "");
   const [success, setSuccess]   = useState("");
 
   // Step 1 — send OTP
@@ -98,6 +99,17 @@ export default function LoginPage() {
             {error   && <div className="auth-error"><AlertCircle size={16}/>{error}</div>}
             {success && <div className="auth-success"><CheckCircle size={16}/>{success}</div>}
 
+            <div className="oauth-grid">
+              <button type="button" className="oauth-btn" onClick={() => startOAuth("google")} disabled={loading}>
+                <Chrome size={18} /> Google
+              </button>
+              <button type="button" className="oauth-btn" onClick={() => startOAuth("github")} disabled={loading}>
+                <Github size={18} /> GitHub
+              </button>
+            </div>
+
+            <div className="auth-divider"><span>or continue with email</span></div>
+
             <form className="auth-form" onSubmit={handleSendOtp}>
               <div className="auth-field">
                 <label htmlFor="login-email">Email address</label>
@@ -110,7 +122,10 @@ export default function LoginPage() {
               </div>
 
               <div className="auth-field">
-                <label htmlFor="login-pw">Password</label>
+                <div className="auth-label-row">
+                  <label htmlFor="login-pw">Password</label>
+                  <Link to="/forgot-password">Forgot Password?</Link>
+                </div>
                 <div className="auth-input-wrap">
                   <Lock size={18} className="auth-input-icon"/>
                   <input id="login-pw" type={showPw ? "text" : "password"} placeholder="Your password"
