@@ -86,6 +86,14 @@ a:hover { text-decoration: underline; }
   background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);
   color: #86efac; font-size: 0.88rem; font-weight: 600;
 }
+.auth-info {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 10px; margin-bottom: 20px;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3);
+  color: #c7d2fe; font-size: 0.88rem; font-weight: 600;
+}
+.auth-info span { flex: 1; min-width: 180px; }
+.auth-info a { color: white; font-weight: 900; }
 .auth-form { display: flex; flex-direction: column; gap: 18px; }
 .auth-field { display: flex; flex-direction: column; gap: 6px; }
 .auth-field label { font-size: 0.85rem; font-weight: 700; color: var(--text2); }
@@ -166,6 +174,10 @@ a:hover { text-decoration: underline; }
 .auth-submit-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
 .auth-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .auth-switch { text-align: center; margin-top: 22px; font-size: 0.88rem; color: var(--text2); }
+.auth-secondary-action {
+  text-align: center; margin-top: 14px; font-size: 0.84rem; color: var(--text2);
+}
+.auth-secondary-action a { font-weight: 800; }
 .oauth-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
   margin-bottom: 18px;

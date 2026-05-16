@@ -1,59 +1,51 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Lock, Mail, ShieldAlert } from "lucide-react";
 import { useAuth } from "./AuthContext";
 
-export default function ForgotPasswordPage() {
-  const { forgotPassword, resetPassword } = useAuth();
+export default function SetPasswordPage() {
+  const { requestSetPassword, confirmSetPassword } = useAuth();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [setPasswordPrompt, setSetPasswordPrompt] = useState(null);
 
-  async function handleSendReset(e) {
+  async function handleRequestOtp(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccess("");
-    setSetPasswordPrompt(null);
 
     try {
-      await forgotPassword(email);
-      setSuccess(`Password reset code sent to ${email}`);
+      await requestSetPassword(email);
+      setSuccess(`Password setup code sent to ${email}`);
       setStep(2);
     } catch (err) {
       const data = err.response?.data;
-      if (data?.code === "PASSWORD_NOT_SET") {
-        setSetPasswordPrompt({
-          message: data.message || "You signed up using social login. Please create a password first.",
-          provider: data.provider,
-        });
-      } else {
-        setError(data?.message || "Could not send reset code.");
-      }
+      setError(data?.message || "Could not send password setup code.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleResetPassword(e) {
+  async function handleConfirm(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      await resetPassword(email, otp, password);
-      setSuccess("Password updated. Redirecting to sign in...");
+      await confirmSetPassword(email, otp, password);
+      setSuccess("Password created. Redirecting to sign in...");
       setTimeout(() => navigate("/login"), 900);
     } catch (err) {
-      setError(err.response?.data?.message || "Could not reset password.");
+      setError(err.response?.data?.message || "Could not create password.");
     } finally {
       setLoading(false);
     }
@@ -74,38 +66,33 @@ export default function ForgotPasswordPage() {
         <div className="otp-steps">
           <div className={`otp-step ${step >= 1 ? "active" : ""}`}>
             <span className="step-num">1</span>
-            <span className="step-label">Email</span>
+            <span className="step-label">Verify</span>
           </div>
           <div className="step-line" />
           <div className={`otp-step ${step >= 2 ? "active" : ""}`}>
             <span className="step-num">2</span>
-            <span className="step-label">Reset</span>
+            <span className="step-label">Password</span>
           </div>
         </div>
 
-        <h2 className="auth-title">{step === 1 ? "Reset password" : "Set new password"}</h2>
+        <h2 className="auth-title">{step === 1 ? "Set password" : "Create your password"}</h2>
         <p className="auth-subtitle">
-          {step === 1 ? "Enter your registered email to receive a reset code" : `Use the code sent to ${email}`}
+          {step === 1
+            ? "For Google or GitHub accounts, verify your email before creating a password"
+            : `Use the code sent to ${email}`}
         </p>
 
         {error && <div className="auth-error"><AlertCircle size={16} />{error}</div>}
         {success && <div className="auth-success"><CheckCircle size={16} />{success}</div>}
-        {setPasswordPrompt && (
-          <div className="auth-info">
-            <AlertCircle size={16} />
-            <span>{setPasswordPrompt.message}</span>
-            <Link to={`/set-password?email=${encodeURIComponent(email)}`}>Set Password</Link>
-          </div>
-        )}
 
         {step === 1 ? (
-          <form className="auth-form" onSubmit={handleSendReset}>
+          <form className="auth-form" onSubmit={handleRequestOtp}>
             <div className="auth-field">
-              <label htmlFor="forgot-email">Email address</label>
+              <label htmlFor="set-password-email">Email address</label>
               <div className="auth-input-wrap">
                 <Mail size={18} className="auth-input-icon" />
                 <input
-                  id="forgot-email"
+                  id="set-password-email"
                   type="email"
                   placeholder="you@example.com"
                   value={email}
@@ -118,16 +105,16 @@ export default function ForgotPasswordPage() {
 
             <button type="submit" className="auth-submit-btn" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : null}
-              {loading ? "Sending code..." : "Send reset code"}
+              {loading ? "Sending code..." : "Send setup code"}
             </button>
           </form>
         ) : (
-          <form className="auth-form" onSubmit={handleResetPassword}>
+          <form className="auth-form" onSubmit={handleConfirm}>
             <div className="auth-field">
-              <label htmlFor="reset-otp">Reset code</label>
+              <label htmlFor="set-password-otp">Setup code</label>
               <div className="auth-input-wrap otp-input-wrap">
                 <input
-                  id="reset-otp"
+                  id="set-password-otp"
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
@@ -142,11 +129,11 @@ export default function ForgotPasswordPage() {
             </div>
 
             <div className="auth-field">
-              <label htmlFor="reset-password">New password</label>
+              <label htmlFor="set-password-new">New password</label>
               <div className="auth-input-wrap">
                 <Lock size={18} className="auth-input-icon" />
                 <input
-                  id="reset-password"
+                  id="set-password-new"
                   type={showPw ? "text" : "password"}
                   placeholder="At least 6 characters"
                   value={password}
@@ -168,14 +155,14 @@ export default function ForgotPasswordPage() {
 
             <button type="submit" className="auth-submit-btn" disabled={loading || otp.length < 6}>
               {loading ? <span className="auth-spinner" /> : null}
-              {loading ? "Updating..." : "Update password"}
+              {loading ? "Creating..." : "Create password"}
             </button>
           </form>
         )}
 
         <div className="otp-actions">
           {step === 2 && (
-            <button className="otp-resend-btn" onClick={handleSendReset} disabled={loading} type="button">
+            <button className="otp-resend-btn" onClick={handleRequestOtp} disabled={loading} type="button">
               Resend code
             </button>
           )}

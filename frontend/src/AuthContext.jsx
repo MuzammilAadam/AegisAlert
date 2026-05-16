@@ -56,11 +56,21 @@ export function AuthProvider({ children }) {
   }, []);
 
   const forgotPassword = useCallback(async (email) => {
-    await axios.post(`${API_BASE_URL}/api/auth/password/forgot`, { email });
+    const res = await axios.post(`${API_BASE_URL}/api/auth/password/forgot`, { email });
+    return res.data;
   }, []);
 
   const resetPassword = useCallback(async (email, otp, password) => {
     await axios.post(`${API_BASE_URL}/api/auth/password/reset`, { email, otp, password });
+  }, []);
+
+  const requestSetPassword = useCallback(async (email) => {
+    const res = await axios.post(`${API_BASE_URL}/api/auth/password/set/request`, { email });
+    return res.data;
+  }, []);
+
+  const confirmSetPassword = useCallback(async (email, otp, password) => {
+    await axios.post(`${API_BASE_URL}/api/auth/password/set/confirm`, { email, otp, password });
   }, []);
 
   const completeOAuthCity = useCallback(async (city, oauthToken) => {
@@ -97,6 +107,8 @@ export function AuthProvider({ children }) {
         loginVerifyOtp,
         forgotPassword,
         resetPassword,
+        requestSetPassword,
+        confirmSetPassword,
         completeOAuthSession,
         completeOAuthCity,
         startOAuth,

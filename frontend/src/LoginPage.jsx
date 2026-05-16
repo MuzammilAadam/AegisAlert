@@ -142,6 +142,10 @@ export default function LoginPage() {
                 {loading ? "Sending code…" : "Send verification code"}
               </button>
             </form>
+
+            <p className="auth-secondary-action">
+              Used Google or GitHub before? <Link to="/set-password">Set a password</Link>
+            </p>
           </>
         )}
 

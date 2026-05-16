@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema(
     name:       { type: String, default: "", trim: true },
     email:      { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
     password:   { type: String, default: "" },
+    hasPassword: { type: Boolean, default: false },
     city:       { type: String, default: "", trim: true, index: true },
     authProvider: { type: String, enum: ["local", "google", "github"], default: "local", index: true },
     oauthId:    { type: String, default: "", trim: true },

@@ -68,8 +68,13 @@ function userPayload(user) {
     email: user.email,
     city: user.city,
     authProvider: user.authProvider,
+    hasPassword: Boolean(user.hasPassword || user.password),
     isVerified: user.isVerified,
   };
+}
+
+function userHasPassword(user) {
+  return Boolean(user?.hasPassword || user?.password);
 }
 
 function redirectWithError(res, message) {
@@ -100,6 +105,7 @@ async function findOrCreateOAuthUser(profile, provider) {
       existing.authProvider = provider;
     }
     if (!existing.oauthId && oauthId) existing.oauthId = oauthId;
+    existing.hasPassword = userHasPassword(existing);
     existing.isVerified = true;
     await existing.save();
     return existing;
@@ -109,6 +115,7 @@ async function findOrCreateOAuthUser(profile, provider) {
     name: displayName,
     email,
     password: "",
+    hasPassword: false,
     city: "",
     authProvider: provider,
     oauthId,
@@ -238,6 +245,7 @@ router.post("/signup/verify-otp", async (req, res, next) => {
       name: pending.name,
       email: pending.email,
       password: pending.password,
+      hasPassword: true,
       city: pending.city,
       isVerified: true,
       otp: null,
@@ -269,7 +277,7 @@ router.post("/login/send-otp", async (req, res, next) => {
     }
 
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user || !user.password) {
+    if (!user || !userHasPassword(user)) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
     if (!user.isVerified) {
@@ -336,7 +344,19 @@ router.post("/password/forgot", async (req, res, next) => {
     }
 
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user || !user.password) {
+    if (!user) {
+      return res.status(404).json({ message: "No account exists for this email." });
+    }
+
+    if (!userHasPassword(user)) {
+      return res.status(409).json({
+        code: "PASSWORD_NOT_SET",
+        provider: user.authProvider,
+        message: `You signed up using ${user.authProvider === "github" ? "GitHub" : "Google"}. Please create a password first.`,
+      });
+    }
+
+    if (!user.password) {
       return res.status(404).json({ message: "No password-based account exists for this email." });
     }
 
@@ -368,7 +388,11 @@ router.post("/password/reset", async (req, res, next) => {
     if (passwordError) return res.status(400).json({ message: passwordError });
 
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user || !user.password) {
+    if (!user) {
+      return res.status(404).json({ message: "No account exists for this email." });
+    }
+
+    if (!userHasPassword(user) || !user.password) {
       return res.status(404).json({ message: "No password-based account exists for this email." });
     }
 
@@ -377,11 +401,100 @@ router.post("/password/reset", async (req, res, next) => {
     }
 
     user.password = await bcrypt.hash(password, 12);
+    user.hasPassword = true;
     user.resetPasswordOtp = null;
     user.resetPasswordExpiry = null;
     await user.save();
 
     res.json({ message: "Password updated successfully. You can now sign in." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/password/set/request", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const normalizedEmail = normalizeEmail(req.body.email);
+    if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ message: "Please provide a valid registered email address." });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: "No account exists for this email." });
+    }
+
+    if (userHasPassword(user)) {
+      user.hasPassword = true;
+      await user.save();
+      return res.status(409).json({
+        code: "PASSWORD_ALREADY_SET",
+        message: "This account already has a password. Use Forgot Password to reset it.",
+      });
+    }
+
+    if (!["google", "github"].includes(user.authProvider)) {
+      return res.status(400).json({ message: "This account is not eligible for OAuth password setup." });
+    }
+
+    const otp = generateOtp();
+    user.resetPasswordOtp = hashOtp(otp);
+    user.resetPasswordExpiry = getOtpExpiry(PASSWORD_RESET_EXPIRY_MINUTES);
+    await user.save();
+
+    await sendPasswordResetEmail({ to: normalizedEmail, otp, name: user.name });
+
+    res.json({ message: `Password setup code sent to ${normalizedEmail}.` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/password/set/confirm", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const normalizedEmail = normalizeEmail(req.body.email);
+    const submittedOtp = String(req.body.otp || "").trim();
+    const password = String(req.body.password || "");
+    const passwordError = validatePassword(password);
+
+    if (!normalizedEmail || !submittedOtp) {
+      return res.status(400).json({ message: "Email and setup code are required." });
+    }
+    if (passwordError) return res.status(400).json({ message: passwordError });
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: "No account exists for this email." });
+    }
+
+    if (userHasPassword(user)) {
+      user.hasPassword = true;
+      await user.save();
+      return res.status(409).json({
+        code: "PASSWORD_ALREADY_SET",
+        message: "This account already has a password. Use Forgot Password to reset it.",
+      });
+    }
+
+    if (!["google", "github"].includes(user.authProvider)) {
+      return res.status(400).json({ message: "This account is not eligible for OAuth password setup." });
+    }
+
+    if (!isOtpValid(user.resetPasswordOtp, user.resetPasswordExpiry, submittedOtp)) {
+      return res.status(400).json({ message: "Invalid or expired password setup code." });
+    }
+
+    user.password = await bcrypt.hash(password, 12);
+    user.hasPassword = true;
+    user.resetPasswordOtp = null;
+    user.resetPasswordExpiry = null;
+    await user.save();
+
+    res.json({ message: "Password created successfully. You can now sign in with email and password." });
   } catch (error) {
     next(error);
   }

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import LoginPage from "./LoginPage";
 import SignupPage from "./SignupPage";
 import ForgotPasswordPage from "./ForgotPasswordPage";
+import SetPasswordPage from "./SetPasswordPage";
 import OAuthCityPage from "./OAuthCityPage";
 import OAuthSuccessPage from "./OAuthSuccessPage";
 import Dashboard from "./App";
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/signup"   element={<PublicRoute><SignupPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/set-password" element={<PublicRoute><SetPasswordPage /></PublicRoute>} />
       <Route path="/oauth/success" element={<OAuthSuccessPage />} />
       <Route path="/oauth/city" element={<OAuthCityPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
