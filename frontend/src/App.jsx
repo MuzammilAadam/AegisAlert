@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  Siren,
   Thermometer,
   User,
   Waves,
@@ -34,6 +35,11 @@ import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const AUTO_REFRESH_INTERVAL = 5000;
+const DEMO_ALERTS_ENABLED = import.meta.env.VITE_ENABLE_DEMO_ALERTS !== "false";
+const DEMO_ADMIN_EMAILS = String(import.meta.env.VITE_DEMO_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 const CITIES = [
   "Solapur", "Mumbai", "Pune", "Delhi", "Bangalore", "Chennai", "Kolkata",
@@ -107,7 +113,7 @@ function LivePulseDot() {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
   const defaultCity = user?.city || "Solapur";
@@ -120,7 +126,19 @@ export default function Dashboard() {
   const [error, setError]           = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [demoModeActive, setDemoModeActive] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const intervalRef = useRef(null);
+  const demoTimeoutRef = useRef(null);
+  const demoModeRef = useRef(false);
+
+  const canRunDemoAlert = useMemo(() => {
+    if (!DEMO_ALERTS_ENABLED) return false;
+    if (!DEMO_ADMIN_EMAILS.length) return true;
+
+    const email = String(user?.email || "").toLowerCase();
+    return DEMO_ADMIN_EMAILS.includes(email);
+  }, [user?.email]);
 
   const trendData = useMemo(() => {
     return [...history].reverse().map((item) => ({
@@ -145,6 +163,8 @@ export default function Dashboard() {
   }, []);
 
   const fetchPrediction = useCallback(async (selectedCity, silent = false) => {
+    if (silent && demoModeRef.current) return;
+
     const normalizedCity = selectedCity.trim() || "Solapur";
     if (silent) setSilentLoading(true);
     else { setLoading(true); setError(""); }
@@ -165,16 +185,67 @@ export default function Dashboard() {
   function handleSubmit(e) {
     e.preventDefault();
     const c = searchCity.trim() || "Solapur";
+    if (demoModeRef.current) clearDemoMode(false);
     setCity(c);
   }
 
+  const clearDemoMode = useCallback((refreshRealData = true, targetCity = city) => {
+    clearTimeout(demoTimeoutRef.current);
+    clearInterval(intervalRef.current);
+    demoModeRef.current = false;
+    setDemoModeActive(false);
+
+    if (refreshRealData) {
+      fetchPrediction(targetCity, false);
+      intervalRef.current = setInterval(() => fetchPrediction(targetCity, true), AUTO_REFRESH_INTERVAL);
+    }
+  }, [city, fetchPrediction]);
+
+  const handleDemoAlert = useCallback(async () => {
+    setDemoLoading(true);
+    setError("");
+
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/predictions/demo-alert`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const demoCity = res.data.city || "Pune";
+      const demoTtl = Number(res.data.demoExpiresInMs || 45000);
+
+      clearTimeout(demoTimeoutRef.current);
+      clearInterval(intervalRef.current);
+      demoModeRef.current = true;
+      setDemoModeActive(true);
+      setCity(demoCity);
+      setSearchCity(demoCity);
+      setCurrent(res.data);
+      setLastUpdated(new Date());
+      setHistory((items) => [res.data.record, ...items].slice(0, 12));
+      demoTimeoutRef.current = setTimeout(() => clearDemoMode(true, demoCity), demoTtl);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      demoModeRef.current = false;
+      setDemoModeActive(false);
+    } finally {
+      setDemoLoading(false);
+    }
+  }, [clearDemoMode]);
+
   // Trigger fetch when city changes
   useEffect(() => {
+    if (demoModeRef.current) return;
+
     clearInterval(intervalRef.current);
     fetchPrediction(city, false);
     intervalRef.current = setInterval(() => fetchPrediction(city, true), AUTO_REFRESH_INTERVAL);
     return () => clearInterval(intervalRef.current);
   }, [city, fetchPrediction]);
+
+  useEffect(() => {
+    return () => clearTimeout(demoTimeoutRef.current);
+  }, []);
 
   function handleLogout() {
     logout();
@@ -185,6 +256,7 @@ export default function Dashboard() {
   const disasterType = current?.prediction?.disaster_type || "Monitoring";
   const riskLevel    = getRiskLevel(probability);
   const isHighRisk   = probability > 70;
+  const isDemoAlert  = demoModeActive || current?.isDemo;
   const precautions  = getPrecautions(disasterType, current?.precautions);
 
   const metrics = [
@@ -287,6 +359,12 @@ export default function Dashboard() {
               <ShieldAlert size={16} />
               {riskLevel} risk
             </div>
+            {isDemoAlert && (
+              <div className="demo-mode-pill">
+                <Siren size={16} />
+                Demo Mode Active
+              </div>
+            )}
             {silentLoading && <span className="silent-spinner" />}
           </div>
         </header>
@@ -311,6 +389,17 @@ export default function Dashboard() {
               {loading ? <span className="btn-spinner" /> : <Search size={18} />}
               {loading ? "Searching" : "Search"}
             </button>
+            {canRunDemoAlert && (
+              <button
+                type="button"
+                className="demo-alert-btn"
+                onClick={handleDemoAlert}
+                disabled={demoLoading}
+              >
+                {demoLoading ? <span className="btn-spinner" /> : <Siren size={18} />}
+                {demoLoading ? "Starting" : "Run Demo Alert"}
+              </button>
+            )}
           </form>
 
           {/* Error */}
@@ -318,6 +407,18 @@ export default function Dashboard() {
             <div className="error-banner" role="alert">
               <AlertTriangle size={18} />
               {error}
+            </div>
+          )}
+
+          {isDemoAlert && (
+            <div className="demo-alert-banner" role="status">
+              <Siren size={22} />
+              <div>
+                <strong>Demo Mode Active</strong>
+                <span>
+                  Simulated {disasterType} alert for {current?.city || city}. Demo emails are marked as test alerts and sent only to the logged-in email ID.
+                </span>
+              </div>
             </div>
           )}
 
@@ -333,8 +434,14 @@ export default function Dashboard() {
                   <DisasterIcon type={disasterType} />
                   <strong>{disasterType}</strong> probability is{" "}
                   <strong className="prob-highlight">{probability}%</strong>.
-                  Alert emails sent to{" "}
-                  <strong>{current?.alertedUsers ?? 0}</strong> registered users in {current?.city || city}.
+                  {isDemoAlert ? (
+                    <>Demo email sent to the logged-in account.</>
+                  ) : (
+                    <>
+                      Alert emails sent to{" "}
+                      <strong>{current?.alertedUsers ?? 0}</strong> registered users in {current?.city || city}.
+                    </>
+                  )}
                   {current?.alertSuppressed && " (Cooldown active — next alert after 15 min)"}
                 </p>
               </div>
@@ -344,7 +451,7 @@ export default function Dashboard() {
           {/* Metric Cards */}
           <section className="metrics-grid" aria-label="Live weather metrics">
             {/* Probability card */}
-            <article className={`metric-card probability-card ${riskLevel}`}>
+            <article className={`metric-card probability-card ${riskLevel} ${isDemoAlert ? "demo-pulse" : ""}`}>
               <div className="mc-top">
                 <span className="mc-label">Disaster Probability</span>
                 <DisasterIcon type={disasterType} />
@@ -360,7 +467,7 @@ export default function Dashboard() {
             </article>
 
             {metrics.map(({ label, value, detail, icon: Icon, tone }) => (
-              <article className="metric-card" key={label}>
+              <article className={`metric-card ${isDemoAlert ? "demo-pulse-soft" : ""}`} key={label}>
                 <div className="mc-top">
                   <span className="mc-label">{label}</span>
                   <span className={`mc-icon-wrap ${tone}`}>
@@ -375,7 +482,7 @@ export default function Dashboard() {
 
           {/* Chart + Precautions */}
           <section className="dash-grid" aria-label="Trend analysis">
-            <article className="chart-card">
+            <article className={`chart-card ${isDemoAlert ? "demo-chart-highlight" : ""}`}>
               <div className="card-header">
                 <div>
                   <p className="eyebrow">Monitoring — {current?.city || city}</p>
@@ -445,10 +552,10 @@ export default function Dashboard() {
                 <ShieldAlert size={22} className="header-icon" />
               </div>
 
-              <div className="city-alert-note">
+              <div className={`city-alert-note ${isDemoAlert ? "demo-note" : ""}`}>
                 <MapPin size={15} />
-                Alerts sent only to users registered in{" "}
-                <strong>{current?.city || city}</strong>
+                {isDemoAlert ? "Demo email sent only to logged-in email ID" : "Alerts sent only to users registered in "}
+                {!isDemoAlert && <strong>{current?.city || city}</strong>}
               </div>
 
               {isHighRisk ? (

@@ -88,6 +88,7 @@ export async function sendAlertEmail({
   weather = {},
   environmental = {},
   precautions = getPrecautionsForDisaster(disasterType),
+  isDemo = false,
 }) {
   const recipients = parseEmailRecipients(to);
 
@@ -111,6 +112,15 @@ export async function sendAlertEmail({
   const safeProbability = escapeHtml(probability);
   const riskColor = getRiskColor(probability);
   const riskLabel = getRiskLabel(probability);
+  const titlePrefix = isDemo ? "Demo/Test " : "";
+  const demoNotice = isDemo
+    ? `
+              <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:16px 20px; margin-bottom:22px;">
+                <p style="margin:0; color:#9a3412; font-size:14px; font-weight:700;">
+                  This is a demo/test disaster alert for presentation and system testing only. No real emergency has been confirmed.
+                </p>
+              </div>`
+    : "";
 
   const precautionItems = precautions
     .map(
@@ -149,7 +159,7 @@ export async function sendAlertEmail({
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Disaster Alert — ${safeCity}</title>
+  <title>${titlePrefix}Disaster Alert - ${safeCity}</title>
 </head>
 <body style="margin:0; padding:0; background:#f1f5f9; font-family: 'Segoe UI', Arial, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9; padding:32px 0;">
@@ -161,7 +171,7 @@ export async function sendAlertEmail({
           <tr>
             <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:16px 16px 0 0; padding:32px 32px 28px; text-align:center;">
               <div style="display:inline-block; background:${riskColor}; color:white; font-size:11px; font-weight:800; letter-spacing:2px; text-transform:uppercase; padding:6px 14px; border-radius:20px; margin-bottom:16px;">${riskLabel}</div>
-              <h1 style="margin:0; color:white; font-size:28px; font-weight:800; line-height:1.2;">⚠️ Disaster Alert</h1>
+              <h1 style="margin:0; color:white; font-size:28px; font-weight:800; line-height:1.2;">⚠️ ${titlePrefix}Disaster Alert</h1>
               <p style="margin:10px 0 0; color:#94a3b8; font-size:16px;">AegisAlert Early Warning System</p>
             </td>
           </tr>
@@ -181,6 +191,7 @@ export async function sendAlertEmail({
             <td style="background:white; padding:32px; border-radius:0 0 16px 16px; box-shadow: 0 4px 32px rgba(0,0,0,0.08);">
 
               <!-- Risk Indicator -->
+              ${demoNotice}
               <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px 20px; margin-bottom:28px;">
                 <p style="margin:0; color:#7f1d1d; font-size:14px; font-weight:600;">
                   🚨 Disaster probability has exceeded the <strong>70% critical threshold</strong> for <strong>${safeCity}</strong>. Immediate precautions are strongly advised.
@@ -228,9 +239,16 @@ export async function sendAlertEmail({
   await transporter.sendMail({
     from: `"AegisAlert ⚠️" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to: recipients,
-    subject: `⚠️ [${riskLabel}] Disaster Alert for ${city} — ${disasterType} ${probability}%`,
+    subject: `${isDemo ? "[DEMO/TEST] " : ""}⚠️ [${riskLabel}] Disaster Alert for ${city} — ${disasterType} ${probability}%`,
     text: [
-      `DISASTER ALERT — ${city}`,
+      `${isDemo ? "DEMO/TEST " : ""}DISASTER ALERT — ${city}`,
+      ...(isDemo
+        ? [
+            "This is a demo/test disaster alert for presentation and system testing only.",
+            "No real emergency has been confirmed.",
+            "",
+          ]
+        : []),
       `Risk level: ${riskLabel}`,
       `Predicted disaster: ${disasterType}`,
       `Probability: ${probability}%`,

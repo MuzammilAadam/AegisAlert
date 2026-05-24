@@ -368,6 +368,13 @@ a:hover { text-decoration: underline; }
 .risk-pill.low    { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
 .risk-pill.moderate { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
 .risk-pill.high   { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+.demo-mode-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 900; text-transform: uppercase; letter-spacing: 0.4px;
+  background: rgba(239,68,68,0.16); border: 1px solid rgba(248,113,113,0.45);
+  color: #fecaca;
+}
 
 /* ── Live indicator ── */
 .live-indicator {
@@ -419,6 +426,20 @@ a:hover { text-decoration: underline; }
 }
 .search-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
 .search-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.demo-alert-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 0 18px; border-radius: 10px;
+  border: 1px solid rgba(248,113,113,0.45);
+  background: rgba(127,29,29,0.82);
+  color: #fee2e2; font-weight: 900; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(239,68,68,0.18);
+  transition: opacity 0.2s, transform 0.15s, border-color 0.2s;
+}
+.demo-alert-btn:hover:not(:disabled) {
+  border-color: rgba(252,165,165,0.75);
+  transform: translateY(-1px);
+}
+.demo-alert-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 /* ── Error / Alert banners ── */
 .error-banner {
@@ -445,6 +466,18 @@ a:hover { text-decoration: underline; }
 .alert-body { font-size: 0.9rem; color: #fecaca; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .prob-highlight { color: #f87171; font-size: 1.05em; }
 .disaster-emoji { font-size: 1.1em; }
+.demo-alert-banner {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px; border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(127,29,29,0.96), rgba(153,27,27,0.82));
+  border: 1px solid rgba(248,113,113,0.45);
+  color: #fee2e2; box-shadow: 0 10px 34px rgba(127,29,29,0.28);
+  animation: slideIn 0.35s ease;
+}
+.demo-alert-banner svg { flex-shrink: 0; color: #fecaca; }
+.demo-alert-banner div { display: flex; flex-direction: column; gap: 3px; }
+.demo-alert-banner strong { font-size: 0.98rem; font-weight: 900; }
+.demo-alert-banner span { font-size: 0.87rem; color: #fecaca; line-height: 1.45; }
 
 /* ── Metrics Grid ── */
 .metrics-grid {
@@ -459,6 +492,18 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 2px 16px rgba(0,0,0,0.25);
 }
 .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+.metric-card.demo-pulse,
+.metric-card.demo-pulse-soft {
+  animation: demoPulse 1.7s ease-in-out infinite;
+}
+.metric-card.demo-pulse-soft {
+  border-color: rgba(248,113,113,0.18);
+  animation-duration: 2.2s;
+}
+@keyframes demoPulse {
+  0%, 100% { box-shadow: 0 2px 16px rgba(0,0,0,0.25); }
+  50% { box-shadow: 0 0 0 1px rgba(248,113,113,0.32), 0 12px 36px rgba(239,68,68,0.2); }
+}
 .mc-top {
   display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 14px;
@@ -511,6 +556,10 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius); padding: 24px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.25);
 }
+.chart-card.demo-chart-highlight {
+  border-color: rgba(248,113,113,0.42);
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.18), 0 12px 36px rgba(127,29,29,0.24);
+}
 .card-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; margin-bottom: 20px;
@@ -551,6 +600,11 @@ a:hover { text-decoration: underline; }
   font-size: 0.82rem; font-weight: 600; color: var(--text3);
   padding: 10px 12px; border-radius: 8px; background: var(--bg3);
   border: 1px solid var(--border); margin-bottom: 18px;
+}
+.city-alert-note.demo-note {
+  color: #fecaca;
+  background: rgba(127,29,29,0.3);
+  border-color: rgba(248,113,113,0.32);
 }
 .precautions-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .precaution-item {
@@ -601,6 +655,7 @@ a:hover { text-decoration: underline; }
   .metrics-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .search-panel { flex-direction: column; align-items: stretch; }
   .search-btn { width: 100%; }
+  .demo-alert-btn { width: 100%; }
   .topnav-right { gap: 8px; }
   .last-updated { display: none; }
 }
