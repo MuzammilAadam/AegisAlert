@@ -14,7 +14,6 @@ const ALERT_COOLDOWN_MS = Number(process.env.ALERT_COOLDOWN_MS || 15 * 60 * 1000
 const JWT_SECRET = process.env.JWT_SECRET || "aegisalert_super_secret_key";
 const recentAlerts = new Map();
 const DEMO_ALERT_PAYLOAD = {
-  city: "Pune",
   disasterType: "Flood",
   probability: 92,
   temperature: 39,
@@ -40,8 +39,8 @@ function shouldSendAlert(city, disasterType, now = Date.now()) {
   return true;
 }
 
-function buildDemoAlert() {
-  const city = normalizeCity(DEMO_ALERT_PAYLOAD.city, "Pune");
+function buildDemoAlert(city) {
+  const alertCity = normalizeCity(city);
   const weather = {
     temperature: DEMO_ALERT_PAYLOAD.temperature,
     humidity: DEMO_ALERT_PAYLOAD.humidity,
@@ -61,7 +60,7 @@ function buildDemoAlert() {
   };
 
   return {
-    city,
+    city: alertCity,
     weather,
     environmental,
     prediction,
@@ -94,6 +93,12 @@ async function getLoggedInUser(req) {
   if (!user?.isVerified || !user.email) {
     const error = new Error("Logged-in user could not be verified.");
     error.status = 401;
+    throw error;
+  }
+
+  if (!normalizeCity(user.city)) {
+    const error = new Error("Please update your profile city before running a demo alert.");
+    error.status = 400;
     throw error;
   }
 
@@ -160,9 +165,11 @@ router.post("/", async (req, res, next) => {
 
 router.post("/demo-alert", async (req, res, next) => {
   try {
-    const demoAlert = buildDemoAlert();
     const loggedInUser = await getLoggedInUser(req);
-    const alertRecipients = parseEmailRecipients([loggedInUser.email]);
+    const city = normalizeCity(loggedInUser.city);
+    const demoAlert = buildDemoAlert(city);
+    const cityUsers = await User.find({ ...cityFilter(city), isVerified: true }).lean();
+    const alertRecipients = parseEmailRecipients(cityUsers.map((user) => user.email));
 
     const alertSent = await sendAlertEmail({
       to: alertRecipients,

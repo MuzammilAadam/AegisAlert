@@ -113,7 +113,7 @@ function LivePulseDot() {
 }
 
 export default function Dashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, getProfile } = useAuth();
   const navigate = useNavigate();
 
   const defaultCity = user?.city || "Solapur";
@@ -201,17 +201,27 @@ export default function Dashboard() {
     }
   }, [city, fetchPrediction]);
 
+  useEffect(() => {
+    const latestCity = user?.city?.trim();
+    if (!latestCity || demoModeRef.current) return;
+
+    setCity(latestCity);
+    setSearchCity(latestCity);
+    setCurrent((item) => (item?.isDemo ? null : item));
+  }, [user?.city]);
+
   const handleDemoAlert = useCallback(async () => {
     setDemoLoading(true);
     setError("");
 
     try {
+      await getProfile();
       const res = await axios.post(
         `${API_BASE_URL}/api/predictions/demo-alert`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const demoCity = res.data.city || "Pune";
+      const demoCity = res.data.city || user?.city || city;
       const demoTtl = Number(res.data.demoExpiresInMs || 45000);
 
       clearTimeout(demoTimeoutRef.current);
@@ -231,7 +241,7 @@ export default function Dashboard() {
     } finally {
       setDemoLoading(false);
     }
-  }, [clearDemoMode]);
+  }, [city, clearDemoMode, getProfile, token, user?.city]);
 
   // Trigger fetch when city changes
   useEffect(() => {
@@ -305,6 +315,9 @@ export default function Dashboard() {
           <a className="sidebar-link active" href="#">
             <Gauge size={20} /> Dashboard
           </a>
+          <a className="sidebar-link" href="#" onClick={(e) => { e.preventDefault(); navigate("/profile"); }}>
+            <User size={20} /> Profile
+          </a>
           <a className="sidebar-link" href="#" onClick={(e) => { e.preventDefault(); alert("Coming soon!"); }}>
             <Bell size={20} /> Alerts
           </a>
@@ -314,15 +327,19 @@ export default function Dashboard() {
         </nav>
 
         {user && (
-          <div className="sidebar-user">
+          <button className="sidebar-user sidebar-user-button" onClick={() => navigate("/profile")} aria-label="Open profile">
             <div className="sidebar-avatar">
-              <User size={18} />
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={`${user.name || "User"} profile`} referrerPolicy="no-referrer" />
+              ) : (
+                <User size={18} />
+              )}
             </div>
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">{user.name || "User"}</span>
               <span className="sidebar-user-city">{user.city || "—"}</span>
             </div>
-          </div>
+          </button>
         )}
 
         <button className="sidebar-logout" onClick={handleLogout}>
@@ -416,7 +433,7 @@ export default function Dashboard() {
               <div>
                 <strong>Demo Mode Active</strong>
                 <span>
-                  Simulated {disasterType} alert for {current?.city || city}. Demo emails are marked as test alerts and sent only to the logged-in email ID.
+                  Simulated {disasterType} alert for {current?.city || city}. Demo emails are marked as test alerts and sent only to users currently registered in this city.
                 </span>
               </div>
             </div>
@@ -435,7 +452,10 @@ export default function Dashboard() {
                   <strong>{disasterType}</strong> probability is{" "}
                   <strong className="prob-highlight">{probability}%</strong>.
                   {isDemoAlert ? (
-                    <>Demo email sent to the logged-in account.</>
+                    <>
+                      Demo emails sent to{" "}
+                      <strong>{current?.alertedUsers ?? 0}</strong> registered users in {current?.city || city}.
+                    </>
                   ) : (
                     <>
                       Alert emails sent to{" "}
@@ -554,8 +574,8 @@ export default function Dashboard() {
 
               <div className={`city-alert-note ${isDemoAlert ? "demo-note" : ""}`}>
                 <MapPin size={15} />
-                {isDemoAlert ? "Demo email sent only to logged-in email ID" : "Alerts sent only to users registered in "}
-                {!isDemoAlert && <strong>{current?.city || city}</strong>}
+                {isDemoAlert ? "Demo emails sent only to users registered in " : "Alerts sent only to users registered in "}
+                <strong>{current?.city || city}</strong>
               </div>
 
               {isHighRisk ? (

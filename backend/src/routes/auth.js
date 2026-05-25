@@ -53,6 +53,12 @@ function validatePassword(password) {
   return "";
 }
 
+function validateProfile({ name, city }) {
+  if (String(name || "").trim().length < 2) return "Name must be at least 2 characters.";
+  if (String(city || "").trim().length < 2) return "Please select a valid city.";
+  return "";
+}
+
 function buildToken(user) {
   return jwt.sign(
     { userId: user._id, email: user.email, city: user.city, authProvider: user.authProvider },
@@ -69,6 +75,7 @@ function userPayload(user) {
     city: user.city,
     authProvider: user.authProvider,
     hasPassword: Boolean(user.hasPassword || user.password),
+    profilePicture: user.profilePicture || "",
     isVerified: user.isVerified,
   };
 }
@@ -89,6 +96,30 @@ function redirectAfterOAuth(res, user) {
   return res.redirect(`${FRONTEND_ORIGIN}${path}?${params.toString()}`);
 }
 
+async function requireAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ message: "No token provided." });
+    return null;
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+  } catch (error) {
+    res.status(401).json({ message: "Token is invalid or expired." });
+    return null;
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user || !user.isVerified) {
+    res.status(404).json({ message: "User not found." });
+    return null;
+  }
+
+  return user;
+}
+
 async function findOrCreateOAuthUser(profile, provider) {
   const email = normalizeEmail(profile.emails?.[0]?.value);
   if (!email || !EMAIL_REGEX.test(email)) {
@@ -99,12 +130,14 @@ async function findOrCreateOAuthUser(profile, provider) {
 
   const oauthId = String(profile.id || "");
   const displayName = String(profile.displayName || profile.username || email.split("@")[0]).trim();
+  const profilePicture = String(profile.photos?.[0]?.value || "").trim();
   const existing = await User.findOne({ email });
   if (existing) {
     if (!existing.authProvider || existing.authProvider === "local") {
       existing.authProvider = provider;
     }
     if (!existing.oauthId && oauthId) existing.oauthId = oauthId;
+    if (!existing.profilePicture && profilePicture) existing.profilePicture = profilePicture;
     existing.hasPassword = userHasPassword(existing);
     existing.isVerified = true;
     await existing.save();
@@ -119,6 +152,7 @@ async function findOrCreateOAuthUser(profile, provider) {
     city: "",
     authProvider: provider,
     oauthId,
+    profilePicture,
     isVerified: true,
     otp: null,
     otpExpiry: null,
@@ -534,19 +568,14 @@ router.post("/oauth/city", async (req, res, next) => {
   try {
     if (!dbCheck(res)) return;
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided." });
-    }
-
     const city = String(req.body.city || "").trim();
     if (city.length < 2) {
       return res.status(400).json({ message: "Please select a valid city." });
     }
 
-    const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-    if (!user || !user.isVerified || !["google", "github"].includes(user.authProvider)) {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+    if (!["google", "github"].includes(user.authProvider)) {
       return res.status(404).json({ message: "OAuth user not found." });
     }
 
@@ -569,25 +598,83 @@ router.get("/me", async (req, res, next) => {
   try {
     if (!dbCheck(res)) return;
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided." });
-    }
+    const user = await requireAuth(req, res);
+    if (!user) return;
 
-    const token = authHeader.slice(7);
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId)
-      .select("-password -otp -otpExpiry -resetPasswordOtp -resetPasswordExpiry -oauthId")
-      .lean();
-    if (!user || !user.isVerified) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    res.json({ user });
+    res.json({ user: userPayload(user) });
   } catch (error) {
-    if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token is invalid or expired." });
+    next(error);
+  }
+});
+
+router.get("/profile", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    res.json({ user: userPayload(user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/profile", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    const name = String(req.body.name || "").trim();
+    const city = String(req.body.city || "").trim();
+    const validationError = validateProfile({ name, city });
+    if (validationError) return res.status(400).json({ message: validationError });
+
+    user.name = name;
+    user.city = city;
+    await user.save();
+
+    res.json({
+      message: "Profile updated successfully.",
+      token: buildToken(user),
+      user: userPayload(user),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/profile/password", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    const oldPassword = String(req.body.oldPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) return res.status(400).json({ message: passwordError });
+
+    const hadPassword = userHasPassword(user);
+    if (hadPassword) {
+      const isMatch = await bcrypt.compare(oldPassword, user.password || "");
+      if (!isMatch) {
+        return res.status(401).json({ message: "Current password is incorrect." });
+      }
     }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.hasPassword = true;
+    await user.save();
+
+    res.json({
+      message: hadPassword ? "Password updated successfully." : "Password created successfully.",
+      user: userPayload(user),
+    });
+  } catch (error) {
     next(error);
   }
 });

@@ -25,6 +25,10 @@ export function AuthProvider({ children }) {
     setUser(newUser);
   }
 
+  function persistUser(newUser) {
+    setUser(newUser);
+  }
+
   const completeOAuthSession = useCallback(async (newToken) => {
     const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${newToken}` },
@@ -84,6 +88,34 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, [token]);
 
+  const getProfile = useCallback(async () => {
+    const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    persistUser(res.data.user);
+    return res.data.user;
+  }, [token]);
+
+  const updateProfile = useCallback(async ({ name, city }) => {
+    const res = await axios.put(
+      `${API_BASE_URL}/api/auth/profile`,
+      { name, city },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    persistSession(res.data.token, res.data.user);
+    return res.data;
+  }, [token]);
+
+  const changePassword = useCallback(async ({ oldPassword, newPassword }) => {
+    const res = await axios.put(
+      `${API_BASE_URL}/api/auth/profile/password`,
+      { oldPassword, newPassword },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    persistUser(res.data.user);
+    return res.data;
+  }, [token]);
+
   const startOAuth = useCallback((provider) => {
     window.location.href = `${API_BASE_URL}/api/auth/${provider}`;
   }, []);
@@ -111,6 +143,9 @@ export function AuthProvider({ children }) {
         confirmSetPassword,
         completeOAuthSession,
         completeOAuthCity,
+        getProfile,
+        updateProfile,
+        changePassword,
         startOAuth,
         logout,
       }}

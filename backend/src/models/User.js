@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
     city:       { type: String, default: "", trim: true, index: true },
     authProvider: { type: String, enum: ["local", "google", "github"], default: "local", index: true },
     oauthId:    { type: String, default: "", trim: true },
+    profilePicture: { type: String, default: "", trim: true },
     isVerified: { type: Boolean, default: false },
     otp:        { type: String, default: null },
     otpExpiry:  { type: Date, default: null },

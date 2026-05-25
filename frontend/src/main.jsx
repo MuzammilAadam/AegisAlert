@@ -8,6 +8,7 @@ import ForgotPasswordPage from "./ForgotPasswordPage";
 import SetPasswordPage from "./SetPasswordPage";
 import OAuthCityPage from "./OAuthCityPage";
 import OAuthSuccessPage from "./OAuthSuccessPage";
+import ProfilePage from "./ProfilePage";
 import Dashboard from "./App";
 import "./styles.css";
 
@@ -34,6 +35,7 @@ function AppRoutes() {
       <Route path="/oauth/success" element={<OAuthSuccessPage />} />
       <Route path="/oauth/city" element={<OAuthCityPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
