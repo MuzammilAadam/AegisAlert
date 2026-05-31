@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema(
     authProvider: { type: String, enum: ["local", "google", "github"], default: "local", index: true },
     oauthId:    { type: String, default: "", trim: true },
     profilePicture: { type: String, default: "", trim: true },
+    telegramChatId: { type: String, default: "", trim: true },
+    telegramEnabled: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
     otp:        { type: String, default: null },
     otpExpiry:  { type: Date, default: null },

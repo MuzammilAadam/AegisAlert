@@ -2,6 +2,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { getPrecautionsForDisaster, parseEmailRecipients, sendAlertEmail } from "../services/email.js";
+import { sendTelegramAlerts } from "../services/telegram.js";
 import { getEnvironmentalIndicators, getWeatherForCity } from "../services/weather.js";
 import { predictDisaster } from "../services/mlClient.js";
 import { savePrediction, listPredictions } from "../services/predictionStore.js";
@@ -125,6 +126,7 @@ router.post("/", async (req, res, next) => {
     let alertSent = false;
     let alertedUsers = 0;
     let alertSuppressed = false;
+    let telegramAlertsSent = 0;
     if (prediction.disaster_probability > ALERT_THRESHOLD) {
       const cityUsers = isDatabaseConnected()
         ? await User.find({ ...cityFilter(city), isVerified: true }).lean()
@@ -133,15 +135,26 @@ router.post("/", async (req, res, next) => {
       alertedUsers = alertRecipients.length;
 
       if (shouldSendAlert(city, prediction.disaster_type)) {
-        alertSent = await sendAlertEmail({
-          to: alertRecipients,
-          city,
-          disasterType: prediction.disaster_type,
-          probability: prediction.disaster_probability,
-          weather,
-          environmental,
-          precautions,
-        });
+        const [emailSent, tgSent] = await Promise.all([
+          sendAlertEmail({
+            to: alertRecipients,
+            city,
+            disasterType: prediction.disaster_type,
+            probability: prediction.disaster_probability,
+            weather,
+            environmental,
+            precautions,
+          }),
+          sendTelegramAlerts({
+            users: cityUsers,
+            city,
+            disasterType: prediction.disaster_type,
+            probability: prediction.disaster_probability,
+            precautions,
+          }),
+        ]);
+        alertSent = emailSent;
+        telegramAlertsSent = tgSent;
       } else {
         alertSuppressed = true;
       }
@@ -156,6 +169,7 @@ router.post("/", async (req, res, next) => {
       alertSent,
       alertSuppressed,
       alertedUsers,
+      telegramAlertsSent,
       record,
     });
   } catch (error) {
@@ -171,20 +185,31 @@ router.post("/demo-alert", async (req, res, next) => {
     const cityUsers = await User.find({ ...cityFilter(city), isVerified: true }).lean();
     const alertRecipients = parseEmailRecipients(cityUsers.map((user) => user.email));
 
-    const alertSent = await sendAlertEmail({
-      to: alertRecipients,
-      city: demoAlert.city,
-      disasterType: demoAlert.prediction.disaster_type,
-      probability: demoAlert.prediction.disaster_probability,
-      weather: demoAlert.weather,
-      environmental: demoAlert.environmental,
-      precautions: demoAlert.precautions,
-      isDemo: true,
-    });
+    const [alertSent, telegramAlertsSent] = await Promise.all([
+      sendAlertEmail({
+        to: alertRecipients,
+        city: demoAlert.city,
+        disasterType: demoAlert.prediction.disaster_type,
+        probability: demoAlert.prediction.disaster_probability,
+        weather: demoAlert.weather,
+        environmental: demoAlert.environmental,
+        precautions: demoAlert.precautions,
+        isDemo: true,
+      }),
+      sendTelegramAlerts({
+        users: cityUsers,
+        city: demoAlert.city,
+        disasterType: demoAlert.prediction.disaster_type,
+        probability: demoAlert.prediction.disaster_probability,
+        precautions: demoAlert.precautions,
+        isDemo: true,
+      }),
+    ]);
 
     res.json({
       ...demoAlert,
       alertSent,
+      telegramAlertsSent,
       alertSuppressed: false,
       alertedUsers: alertRecipients.length,
       record: {

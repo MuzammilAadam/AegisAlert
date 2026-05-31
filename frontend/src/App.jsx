@@ -32,6 +32,7 @@ import {
 } from "recharts";
 import { useAuth } from "./AuthContext";
 import { useNavigate } from "react-router-dom";
+import DisasterChatbot from "./DisasterChatbot";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const AUTO_REFRESH_INTERVAL = 5000;
@@ -608,6 +609,7 @@ export default function Dashboard() {
           </footer>
         </div>
       </main>
+      <DisasterChatbot currentCity={current?.city || city} />
     </div>
   );
 }

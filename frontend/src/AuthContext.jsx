@@ -116,6 +116,30 @@ export function AuthProvider({ children }) {
     return res.data;
   }, [token]);
 
+  const updateTelegram = useCallback(async ({ telegramChatId, telegramEnabled }) => {
+    const res = await axios.put(
+      `${API_BASE_URL}/api/auth/telegram`,
+      { telegramChatId, telegramEnabled },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    persistUser(res.data.user);
+    return res.data;
+  }, [token]);
+
+  const getTelegramStatus = useCallback(async () => {
+    const res = await axios.get(`${API_BASE_URL}/api/auth/telegram/status`);
+    return res.data;
+  }, []);
+
+  const sendTelegramTest = useCallback(async () => {
+    const res = await axios.post(
+      `${API_BASE_URL}/api/auth/telegram/test`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return res.data;
+  }, [token]);
+
   const startOAuth = useCallback((provider) => {
     window.location.href = `${API_BASE_URL}/api/auth/${provider}`;
   }, []);
@@ -146,6 +170,9 @@ export function AuthProvider({ children }) {
         getProfile,
         updateProfile,
         changePassword,
+        updateTelegram,
+        getTelegramStatus,
+        sendTelegramTest,
         startOAuth,
         logout,
       }}

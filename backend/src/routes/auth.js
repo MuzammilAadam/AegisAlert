@@ -15,6 +15,7 @@ import {
   sendOtpEmail,
   sendPasswordResetEmail,
 } from "../services/otp.js";
+import { getTelegramBotInfo, sendTelegramTestMessage } from "../services/telegram.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "aegisalert_super_secret_key";
@@ -77,6 +78,8 @@ function userPayload(user) {
     hasPassword: Boolean(user.hasPassword || user.password),
     profilePicture: user.profilePicture || "",
     isVerified: user.isVerified,
+    telegramChatId: user.telegramChatId || "",
+    telegramEnabled: Boolean(user.telegramEnabled),
   };
 }
 
@@ -674,6 +677,79 @@ router.put("/profile/password", async (req, res, next) => {
       message: hadPassword ? "Password updated successfully." : "Password created successfully.",
       user: userPayload(user),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── Telegram integration ──────────────────────────────────────────────────────
+
+router.put("/telegram", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    // Allow clearing (empty string) or setting a new chatId
+    const telegramChatId = String(req.body.telegramChatId ?? "").trim();
+    // telegramEnabled defaults to true when a chatId is provided
+    const telegramEnabled =
+      req.body.telegramEnabled !== undefined
+        ? Boolean(req.body.telegramEnabled)
+        : Boolean(telegramChatId);
+
+    user.telegramChatId = telegramChatId;
+    user.telegramEnabled = telegramEnabled && Boolean(telegramChatId);
+    await user.save();
+
+    res.json({
+      message: telegramChatId
+        ? "Telegram account connected successfully."
+        : "Telegram account disconnected.",
+      user: userPayload(user),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/telegram/status", async (_req, res, next) => {
+  try {
+    const info = await getTelegramBotInfo();
+    res.json({
+      configured: Boolean(info),
+      username: info?.username || "",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/telegram/test", async (req, res, next) => {
+  try {
+    if (!dbCheck(res)) return;
+
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    if (!user.telegramChatId) {
+      return res.status(400).json({ message: "Connect a Telegram Chat ID before sending a test alert." });
+    }
+
+    const sent = await sendTelegramTestMessage({
+      chatId: user.telegramChatId,
+      name: user.name,
+    });
+
+    if (!sent) {
+      return res.status(502).json({
+        message:
+          "Telegram test failed. Open your AegisAlert bot in Telegram, tap Start, then confirm the Chat ID is correct.",
+      });
+    }
+
+    res.json({ message: "Telegram test alert sent successfully." });
   } catch (error) {
     next(error);
   }

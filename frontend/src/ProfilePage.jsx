@@ -13,8 +13,10 @@ import {
   Lock,
   Mail,
   MapPin,
+  MessageCircle,
   Pencil,
   Save,
+  Send,
   ShieldAlert,
   User,
   X,
@@ -66,7 +68,16 @@ function Notice({ type, children }) {
 }
 
 export default function ProfilePage() {
-  const { user, getProfile, updateProfile, changePassword, logout } = useAuth();
+  const {
+    user,
+    getProfile,
+    updateProfile,
+    changePassword,
+    updateTelegram,
+    getTelegramStatus,
+    sendTelegramTest,
+    logout,
+  } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(user);
@@ -83,6 +94,15 @@ export default function ProfilePage() {
   const [passwordNotice, setPasswordNotice] = useState({ type: "", message: "" });
   const [passwordForm, setPasswordForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [showPasswords, setShowPasswords] = useState(false);
+
+  // Telegram state
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [telegramSaving, setTelegramSaving] = useState(false);
+  const [telegramNotice, setTelegramNotice] = useState({ type: "", message: "" });
+  const [telegramToggling, setTelegramToggling] = useState(false);
+  const [telegramTesting, setTelegramTesting] = useState(false);
+  const [telegramBot, setTelegramBot] = useState({ configured: false, username: "" });
 
   const hasPassword = Boolean(profile?.hasPassword);
   const authProvider = providerLabel(profile?.authProvider);
@@ -106,6 +126,8 @@ export default function ProfilePage() {
         setProfile(freshProfile);
         setForm({ name: freshProfile.name || "", city: freshProfile.city || "" });
         setCityOption(freshProfile.city ? { value: freshProfile.city, label: freshProfile.city } : null);
+        setTelegramChatId(freshProfile.telegramChatId || "");
+        setTelegramEnabled(Boolean(freshProfile.telegramEnabled));
       })
       .catch((err) => {
         if (active) setNotice({ type: "error", message: err.response?.data?.message || "Could not load profile." });
@@ -118,6 +140,22 @@ export default function ProfilePage() {
       active = false;
     };
   }, [getProfile]);
+
+  useEffect(() => {
+    let active = true;
+
+    getTelegramStatus()
+      .then((status) => {
+        if (active) setTelegramBot(status);
+      })
+      .catch(() => {
+        if (active) setTelegramBot({ configured: false, username: "" });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [getTelegramStatus]);
 
   useEffect(() => {
     let active = true;
@@ -227,6 +265,57 @@ export default function ProfilePage() {
     navigate("/login");
   }
 
+  async function handleTelegramSave(e) {
+    e.preventDefault();
+    setTelegramNotice({ type: "", message: "" });
+    const chatId = telegramChatId.trim();
+
+    setTelegramSaving(true);
+    try {
+      const res = await updateTelegram({ telegramChatId: chatId, telegramEnabled: chatId ? telegramEnabled : false });
+      setProfile(res.user);
+      setTelegramChatId(res.user.telegramChatId || "");
+      setTelegramEnabled(Boolean(res.user.telegramEnabled));
+      setTelegramNotice({ type: "success", message: res.message || "Telegram settings saved." });
+    } catch (err) {
+      setTelegramNotice({ type: "error", message: err.response?.data?.message || "Could not save Telegram settings." });
+    } finally {
+      setTelegramSaving(false);
+    }
+  }
+
+  async function handleTelegramToggle(enabled) {
+    setTelegramToggling(true);
+    setTelegramNotice({ type: "", message: "" });
+    try {
+      const res = await updateTelegram({ telegramChatId: profile?.telegramChatId || "", telegramEnabled: enabled });
+      setProfile(res.user);
+      setTelegramEnabled(Boolean(res.user.telegramEnabled));
+      setTelegramNotice({ type: "success", message: enabled ? "Telegram alerts enabled." : "Telegram alerts paused." });
+    } catch (err) {
+      setTelegramNotice({ type: "error", message: err.response?.data?.message || "Could not update preference." });
+    } finally {
+      setTelegramToggling(false);
+    }
+  }
+
+  async function handleTelegramTest() {
+    setTelegramTesting(true);
+    setTelegramNotice({ type: "", message: "" });
+
+    try {
+      const res = await sendTelegramTest();
+      setTelegramNotice({ type: "success", message: res.message || "Telegram test alert sent." });
+    } catch (err) {
+      setTelegramNotice({
+        type: "error",
+        message: err.response?.data?.message || "Could not send Telegram test alert.",
+      });
+    } finally {
+      setTelegramTesting(false);
+    }
+  }
+
   return (
     <div className="profile-root">
       <main className="profile-main">
@@ -300,6 +389,104 @@ export default function ProfilePage() {
               <span>Current city</span>
               <strong>{profile?.city || "--"}</strong>
             </div>
+          </section>
+
+          {/* ── Telegram Integration ───────────────────────── */}
+          <section className="profile-card">
+            <div className="profile-card-header">
+              <div>
+                <p className="eyebrow">Instant alerts</p>
+                <h2>Telegram Integration</h2>
+              </div>
+              <MessageCircle size={22} />
+            </div>
+
+            {/* Connection status chip */}
+            <div className="telegram-status-row">
+              {profile?.telegramChatId ? (
+                <span className="telegram-connected-chip">
+                  ✅ Connected — Chat ID: <code>{profile.telegramChatId}</code>
+                </span>
+              ) : (
+                <span className="telegram-disconnected-chip">
+                  ⚡ Not connected
+                </span>
+              )}
+            </div>
+
+            <p className="profile-muted">
+              Connect your Telegram account to receive instant disaster alerts.
+              First open <strong>{telegramBot.username ? `@${telegramBot.username}` : "your AegisAlert bot"}</strong> on Telegram and tap Start.
+              Then open <strong>@userinfobot</strong>, send it a message, and paste your numeric Chat ID below.
+            </p>
+
+            <Notice type={telegramNotice.type}>{telegramNotice.message}</Notice>
+
+            <form className="profile-telegram-form" onSubmit={handleTelegramSave}>
+              <label className="profile-field">
+                <span>Telegram Chat ID</span>
+                <div className="profile-input-wrap">
+                  <Send size={17} />
+                  <input
+                    type="text"
+                    placeholder="e.g. 123456789"
+                    value={telegramChatId}
+                    onChange={(e) => {
+                      setTelegramChatId(e.target.value);
+                      setTelegramNotice({ type: "", message: "" });
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+              </label>
+
+              <div className="telegram-actions-row">
+                <button
+                  type="submit"
+                  className="profile-secondary-btn"
+                  disabled={telegramSaving}
+                >
+                  {telegramSaving ? <Loader2 size={17} className="spin-icon" /> : <Save size={17} />}
+                  {telegramSaving ? "Saving" : profile?.telegramChatId ? "Update / Disconnect" : "Connect Telegram"}
+                </button>
+
+                {profile?.telegramChatId && (
+                  <label className="telegram-toggle-label">
+                    <span>Alerts {telegramEnabled ? "enabled" : "paused"}</span>
+                    <button
+                      type="button"
+                      id="telegram-toggle"
+                      className={`telegram-toggle ${telegramEnabled ? "on" : "off"}`}
+                      onClick={() => handleTelegramToggle(!telegramEnabled)}
+                      disabled={telegramToggling}
+                      aria-checked={telegramEnabled}
+                      role="switch"
+                      aria-label="Toggle Telegram alerts"
+                    >
+                      <span className="telegram-toggle-knob" />
+                    </button>
+                  </label>
+                )}
+
+                {profile?.telegramChatId && (
+                  <button
+                    type="button"
+                    className="profile-secondary-btn"
+                    onClick={handleTelegramTest}
+                    disabled={telegramTesting}
+                  >
+                    {telegramTesting ? <Loader2 size={17} className="spin-icon" /> : <Send size={17} />}
+                    {telegramTesting ? "Sending" : "Send Test"}
+                  </button>
+                )}
+              </div>
+
+              {telegramChatId.trim() === "" && profile?.telegramChatId && (
+                <p className="telegram-hint">
+                  Clear the field and save to disconnect Telegram.
+                </p>
+              )}
+            </form>
           </section>
 
           <section className="profile-card">

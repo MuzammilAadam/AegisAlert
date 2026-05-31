@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import passport from "passport";
 import authRoutes from "./routes/auth.js";
+import chatbotRoutes from "./routes/chatbot.js";
 import emailSubscriberRoutes from "./routes/emailSubscribers.js";
 import predictionRoutes from "./routes/predictions.js";
 import userRoutes from "./routes/users.js";
@@ -58,6 +59,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/predictions", predictionRoutes);
 app.use("/api/email-subscribers", emailSubscriberRoutes);
 app.use("/api/users", userRoutes);
